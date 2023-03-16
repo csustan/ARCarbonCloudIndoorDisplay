@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<title>A cloud of pollution</title>
+<!--redirect favicon-->
+<link rel="shortcut icon" href="./img/favicon.ico">
+<!-- three.js library -->
+<script src='./js/three.js'></script>
+<!--Additional Libraries-->
+<!-- three.js load GLTF -->
+ <script src='./js/GLTFLoader.js'></script> 
+
+<!-- States frame rate monitor -->
+<!-- <script src="js/stats.min.js"></script> --> 
+<!-- ar.js -->
+<script src="./js/ar-threex.js"></script>
+<!--Set Base URL for the THEEx Library to refernece normally '../' -->
+<script>THREEx.ArToolkitContext.baseURL = './js/'</script>
+
+<body style='margin : 0px; overflow: hidden;'>
+	
+	<div style='position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
+		<div style="font-size: 20pt;  text-align: center;"><label><a href="https://www.csustan.edu/sustainability/news-events">Click For Info on Carbon Footprints</a></label></div>
+	</div>
+
+	<script >
+
+	//import { RGBELoader } from './js/RGBELoader.js'; //load the RGBELoader
+
+		//////////////////////////////////////////////////////////////////////////////////
+		//		Init
+		//////////////////////////////////////////////////////////////////////////////////
+		
+		// init renderer
+		var renderer = new THREE.WebGLRenderer({
+			antialias: true,
+			alpha: true
+		});
+		renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+		//renderer.setSize(640, 480);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		renderer.domElement.style.position = 'absolute'
+		renderer.domElement.style.top = '0px'
+		renderer.domElement.style.left = '0px'
+		//renderer.domElement.style.zIndex = '1';
+		document.body.appendChild(renderer.domElement);
+
+		// array of functions for the rendering loop
+		var onRenderFcts = [];
+		var arToolkitContext, arMarkerControls, markerRoot;
+
+		// init scene and camera
+		var scene = new THREE.Scene();
+
+		//Build a set of robust GLTF Storage:
+		//Object Control
+	var objectControls = {
+
+intCheck: 0, //a test code
+gltfObject: null,
+//objectControls.gltfTexture
+gltfTexture: null,
+//objectControls.glifLoader
+glifLoader: null,
+//objectControls.node
+node: null,
+
+backupSettings: "",
+
+storeBackupSettings: function(userJSON){
+	this.backupSettings = JSON.stringify(userJSON);
+},
+
+getBackupSettings: function(){
+	return JSON.parse(this.backupSettings);
+},
+
+//objectControls.setGltfObject(blah);
+setGltfObject: function (input) {
+	console.log("Entering objectControls.setGltfObject()"); //test code
+	console.log("Input: "); //test code
+	console.dir(input); //test code
+	if (input) {
+		this.gltfObject = input;
+	}
+},
+
+//objectControls.getGltfObject();
+getGltfObject: function () {
+	return this.gltfObject;
+},
+
+//test code:
+setIntCheck: function (input) {
+	this.intCheck = input;
+},
+
+getIntCheck: function () {
+	return this.intCheck;
+},
+
+checkGltfTexture: function () {
+	if (this.gltfTexture) {
+		return true;
+	} else {
+		return false;
+	}
+},
+
+setGltfTexture: function (UserTextureName, UserTexturePath) {
+	var textureName = UserTextureName ? UserTextureName : "default.jpg";
+	var texturePath = UserTexturePath ? UserTexturePath : 'resources/textures/images';
+	var totalPath = texturePath + textureName;
+
+	if (this.checkGltfTexture) {
+		this.gltfTexture.setPath(texturePath);
+		this.gltfTexture.load(textureName);
+	} else {
+
+		this.gltfTexture = new THREE.TextureLoader(loaderManager)
+			.setPath(texturePath);
+
+		this.gltfTexture.load(textureName);
+
+	}
+},
+
+loadGltfTexture: function (UserTextureName, UserTexturePath) {
+	//prep the texture for applicatio
+	this.setGltfTexture(serTextureName, UserTexturePath)
+	//apply the texture to the object
+	if (this.gltfObject) {
+		this.gltfObject.traverse(function (child) {
+
+			if (child.isMesh) {
+
+				child.material = this.gltfTexture;
+
+			}
+
+		});
+
+	}
+
+}
+
+};
+
+
+		//////////////////////////////////////////////////////////////////////////////////
+		//		Initialize a basic camera
+		//////////////////////////////////////////////////////////////////////////////////
+
+		// Create a camera
+		var camera = new THREE.Camera();
+		scene.add(camera);
+
+		markerRoot = new THREE.Group
+		scene.add(markerRoot)
+		////////////////////////////////////////////////////////////////////////////////
+		//          handle arToolkitSource
+		////////////////////////////////////////////////////////////////////////////////
+
+		var arToolkitSource = new THREEx.ArToolkitSource({
+			// to read from the webcam
+			sourceType: 'webcam',
+
+			sourceWidth: window.innerWidth > window.innerHeight ? 640 : 480,
+			sourceHeight: window.innerWidth > window.innerHeight ? 480 : 640,
+
+			// // to read from an image
+			// sourceType : 'image',
+			// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/images/img.jpg',
+
+			// to read from a video
+			// sourceType : 'video',
+			// sourceUrl : THREEx.ArToolkitContext.baseURL + '../data/videos/headtracking.mp4',
+		})
+
+		//var light = new THREE.light(0xffffff, 0.5);
+		//scene.add(light);
+
+		arToolkitSource.init(function onReady() {
+			//initARContext()
+			//onResize()
+
+			arToolkitSource.domElement.addEventListener('canplay', () => {
+				console.log(
+					'canplay',
+					'actual source dimensions',
+					arToolkitSource.domElement.videoWidth,
+					arToolkitSource.domElement.videoHeight
+				);
+
+				initARContext();
+			});
+			window.arToolkitSource = arToolkitSource;
+			setTimeout(() => {
+				onResize()
+			}, 2000);
+
+		})
+
+
+		// handle resize
+		window.addEventListener('resize', function () {
+			onResize()
+		})
+
+		function onResize() {
+			arToolkitSource.onResizeElement()
+			arToolkitSource.copyElementSizeTo(renderer.domElement)
+			if (window.arToolkitContext) { //The arToolKitContext is generated in a differnt function, so check that the arToolkitContext is actually on the Window before searching it.
+				if (window.arToolkitContext.arController !== null) {
+					arToolkitSource.copyElementSizeTo(window.arToolkitContext.arController.canvas)
+				}
+			}
+		}
+		////////////////////////////////////////////////////////////////////////////////
+		//          initialize arToolkitContext
+		////////////////////////////////////////////////////////////////////////////////
+
+
+		function initARContext() { // create atToolkitContext
+			arToolkitContext = new THREEx.ArToolkitContext({
+				cameraParametersUrl: THREEx.ArToolkitContext.baseURL + 'data/camera_para.dat',
+				detectionMode: 'mono'
+			})
+			// initialize it
+			arToolkitContext.init(function onCompleted() {
+				// copy projection matrix to camera
+				camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+
+				arToolkitContext.arController.orientation = getSourceOrientation();
+				arToolkitContext.arController.options.orientation = getSourceOrientation();
+
+				console.log('arToolkitContext', arToolkitContext);
+				window.arToolkitContext = arToolkitContext;
+			})
+			
+			artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+				type: 'pattern',
+				patternUrl: THREEx.ArToolkitContext.baseURL + 'data/lambda.patt',
+				
+				smooth: true,
+	   			 // number of matrices to smooth tracking over, more = smoother but slower follow
+	   			smoothCount: 5,
+	    		// distance tolerance for smoothing, if smoothThreshold # of matrices are under tolerance, tracking will stay still
+	    		smoothTolerance: 0.01,
+	    		// threshold for smoothing, will keep still unless enough matrices are over tolerance
+	    		smoothThreshold: 2 //Wobble control	
+				
+			})
+											  
+		}
+
+		
+
+		function getSourceOrientation() {
+			if (!arToolkitSource) {
+				return null;
+			}
+
+			console.log(
+				'actual source dimensions',
+				arToolkitSource.domElement.videoWidth,
+				arToolkitSource.domElement.videoHeight
+			);
+
+			if (arToolkitSource.domElement.videoWidth > arToolkitSource.domElement.videoHeight) {
+				console.log('source orientation', 'landscape');
+				return 'landscape';
+			} else {
+				console.log('source orientation', 'portrait');
+				return 'portrait';
+			}
+		}
+
+		// update artoolkit on every frame
+		onRenderFcts.push(function () {
+			if (!arToolkitContext || !arToolkitSource || !arToolkitSource.ready) {
+				return;
+			}
+
+			arToolkitContext.update(arToolkitSource.domElement)
+
+			//  // update scene.visible if the marker is seen
+			//scene.visible = camera.visible
+		})
+
+		////////////////////////////////////////////////////////////////////////////////
+		//          Create a ArMarkerControls
+		////////////////////////////////////////////////////////////////////////////////
+
+		var markerRoot = new THREE.Group();
+		scene.add(markerRoot)
+
+
+		// build a smoothedControls
+		var smoothedRoot = new THREE.Group();
+		scene.add(smoothedRoot);
+		var smoothedControls = new THREEx.ArSmoothedControls(smoothedRoot, {
+			
+			lerpPosition: 0.8,//0.8,
+			lerpQuaternion: 0.05,  //jiggle control
+			lerpScale: 1,
+			
+			//Defaults:
+			//lerpPosition: 0.4,
+			//lerpQuaternion: 0.3,
+			//lerpScale: 1,
+
+		})
+		onRenderFcts.push(function (delta) {
+			smoothedControls.update(markerRoot)
+		})
+		//////////////////////////////////////////////////////////////////////////////////
+		//		add an object in the scene
+		//////////////////////////////////////////////////////////////////////////////////
+		
+		//Prepare the group to load in objects
+		var arWorldRoot = smoothedRoot;
+		
+		//Lights:
+
+		//Spotlight
+		const spotlight1 = new THREE.SpotLight(0xFFFFFF); //create a spotloight using the ThreeJS spotlight constructor
+		scene.add(spotlight1); //Add the spotlight to the scene
+		spotlight1.castShadow = true;
+		spotlight1.angle = 0.2; //A spotlight's cast shadow is dependent on its angle -- the default angle is huge and results in pixilated shadows.
+		spotlight1.position.set(-100,100,0); //aet the spotlights position
+		
+
+		//Object
+		
+		const threeGLTFLoader = new THREE.GLTFLoader();
+		var loadedModels = {};
+		//var userModel;
+
+		var setModel = function(modelName, passedModel){
+			loadedModels[modelName] = passedModel;
+		};
+		var getModel = function(modelName){
+			return loadedModels[modelName];
+		};
+
+
+		threeGLTFLoader.load(
+			"./resources/Large_Blue_Cloud.gltf", //Resource URL
+			//"./resources/Cloud_Green.glb", //Resource URL
+			function (gltf){ //Called when the Resource is loaded
+			
+			//scene.add(gltf.scene)
+			
+	
+			//Set the scene
+			setModel("userModelAnimations", gltf.animations); // The Array<THREE.AnimationClip>
+			setModel("userModelScene", gltf.scene); // The THREE.Group
+			setModel("userModelScenes", gltf.scenes); // The Array<THREE.Group>
+			setModel("userModelCameras", gltf.cameras); //The Array<THREE.Camera>
+			setModel("userModelAsset", gltf.asset); // The entire Scene
+
+			setModel("userModel", gltf.scene.children[0]); //The Actual Object
+
+			////sometimes a loaded blender/.gltf model will have an offcenter pivot point
+			////due to more than one mesh being loaded, a parent mesh existing, etc.
+			////The reference returned from GLTFLoader is a wrapper around the entire export,
+			////(a.k.a. gltf.scene), which inturn is centered at 0,0,0. this means that the
+			////internal structure could be a mismatch. using mesh.geometry.center()
+			////should correct this. See https://discourse.threejs.org/t/set-pivot-point-to-center-of-object-imported-from-blender/14104/2
+			////for details.
+			//getModel("userModel").geometry.center(); 
+			
+
+			//Scale the model up by 10% to account for the marker border
+			getModel("userModel").scale.x = 0.1;
+			getModel("userModel").scale.y = 0.1;
+			getModel("userModel").scale.z = 0.1;
+
+			////Safely load material
+
+			////( if userModel = gltf.scene;
+			//// use var objectMaterial = gltf.scenes[0].materials;
+			////Otherwise use var objectMaterial = gltf.materials;)
+
+			//var objectMaterial = gltf.materials;
+			//getModel("userModel").traverse(function(node) {
+			//	if (node instanceof THREE.Mesh) {
+					
+			//		node.material.map = objectMaterial;
+			//		console.log("node.material.map");//test code
+			//		console.log(node.material.map);//test code
+			//	}
+			//});
+
+			//Set the transparency
+			
+			//getModel("userModel").children[0].material.transparent = true;
+			//getModel("userModel").children[0].material.opacity = 0.9;
+
+			//getModel("userModel").material.transparent = true;
+			//getModel("userModel").material.opacity = 0.9;
+
+			////Set the initial position
+			//userModel.position.set(0, 0, 0);
+
+			arWorldRoot.add(getModel("userModelScene"));
+
+			//render();
+		});
+		/*
+		//Lights
+		var ambientLight = new THREE.AmbientLight(0xffffff, .05);
+		arWorldRoot.add(ambientLight);
+		var hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x000000, .05);
+		arWorldRoot.add(hemisphereLight);
+*/
+		//////////////////////////////////////////////////////////////////////////////////
+		//		render the whole thing on the page
+		//////////////////////////////////////////////////////////////////////////////////
+		//if issues with frame rate occur, add a stats box to monitor it:
+		//var stats = new Stats(); //test code 
+		//document.body.appendChild(stats.dom); //Test Code
+		// render the scene
+		onRenderFcts.push(function () {
+			renderer.render(scene, camera);
+
+			//stats.update(); //Test Code
+		})
+
+		//console.dir(onRenderFcts);		//test code
+		//// run the rendering loop
+		var lastTimeMsec = null
+		requestAnimationFrame(function animate(nowMsec) {
+			// keep looping
+			requestAnimationFrame(animate);
+			// measure time
+			lastTimeMsec = lastTimeMsec || nowMsec - 1000 / 60
+			var deltaMsec = Math.min(200, nowMsec - lastTimeMsec)
+			lastTimeMsec = nowMsec
+			// call each update function
+			onRenderFcts.forEach(function (onRenderFct) {
+				onRenderFct(deltaMsec / 1000, nowMsec / 1000)
+				//getModel("userModel").rotation.y += 0.001; //rotation animation
+			})
+		})
+	</script>
+</body>
