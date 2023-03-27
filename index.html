@@ -126,7 +126,7 @@ setGltfTexture: function (UserTextureName, UserTexturePath) {
 
 loadGltfTexture: function (UserTextureName, UserTexturePath) {
 	//prep the texture for applicatio
-	this.setGltfTexture(serTextureName, UserTexturePath)
+	this.setGltfTexture(UserTextureName, UserTexturePath)
 	//apply the texture to the object
 	if (this.gltfObject) {
 		this.gltfObject.traverse(function (child) {
